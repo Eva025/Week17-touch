@@ -1,9 +1,11 @@
 package com.example.week17
 
 import android.os.Bundle
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -25,14 +27,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
+import com.example.week17.ui.theme.ColorBlue
+import com.example.week17.ui.theme.ColorGreen
+import com.example.week17.ui.theme.ColorIndigo
+import com.example.week17.ui.theme.ColorOrange
+import com.example.week17.ui.theme.ColorPurple
+import com.example.week17.ui.theme.ColorRed
+import com.example.week17.ui.theme.ColorYellow
 import com.example.week17.ui.theme.Week17Theme
+import kotlin.io.path.Path
+import kotlin.io.path.moveTo
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,7 +59,7 @@ class MainActivity : ComponentActivity() {
                         name = "Android",
                         modifier = Modifier.padding(innerPadding)
                     )
-                    DrawCircle()
+                    DrawCirclePath()
                 }
             }
         }
@@ -79,27 +93,77 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
     }
 }
 
-//
+
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun DrawCircle() {
-    var X = remember { mutableStateListOf(0f) }
-    var Y = remember { mutableStateListOf(0f) }
+fun DrawCirclePath() {
+
+    data class Points(
+        val x: Float,
+        val y: Float
+    )
+
+    val paths = remember { mutableStateListOf<Points>() }
+    val X = remember { mutableStateListOf(0f) }
+    val Y = remember { mutableStateListOf(0f) }
     var Fingers by remember { mutableStateOf(0) }
+    val colors = arrayListOf(
+        ColorRed, ColorOrange, ColorYellow, ColorGreen,
+        ColorBlue, ColorIndigo, ColorPurple
+    )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .pointerInteropFilter { event ->
-                Fingers = event.getPointerCount()
-                X.clear()
-                Y.clear()
-                for (i in 0..Fingers - 1) {
-                    X.add(event.getX(i))
-                    Y.add(event.getY(i))
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        paths.clear()
+                        true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        paths += Points(event.x, event.y)
+                        true
+                    }
+                    else -> {
+                        Fingers = event.pointerCount
+                        X.clear()
+                        Y.clear()
+                        for (i in 0 until Fingers) {
+                            X.add(event.getX(i))
+                            Y.add(event.getY(i))
+                        }
+                        true
+                    }
                 }
-                true
             }
-    )
+    ) {
+
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            for (i in 0 until Fingers) {
+                val paintColor = colors[i % 7]
+                drawCircle(paintColor, 100f, Offset(X[i], Y[i]))
+            }
+        }
+
+
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val path = androidx.compose.ui.graphics.Path()
+            var isFirstPoint = true
+            for (point in paths) {
+                if (isFirstPoint) {
+                    path.moveTo(point.x, point.y)
+                    isFirstPoint = false
+                } else {
+                    path.lineTo(point.x, point.y)
+                }
+            }
+            drawPath(
+                path,
+                color = Color.Black,
+                style = Stroke(width = 30f, join = StrokeJoin.Round)
+            )
+        }
+    }
 }
